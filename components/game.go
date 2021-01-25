@@ -22,6 +22,49 @@ func NewLifeGame(height int, width int, initRate float64, interval int) *LifeGam
 	return lifeGame
 }
 
+func (game *LifeGame) computeNextFlameAsync() (*Field, *Field) {
+	type routineParams struct {
+		h         int
+		nextCells []int
+	}
+	channel := make(chan routineParams, game.currentField.width)
+	// defer close(channel)
+	for h := 0; h < game.currentField.height; h++ {
+		go func(_h int, _field *Field) {
+			nextCells := make([]int, _field.width)
+			for _w := 0; _w < _field.width; _w++ {
+				AroundLifeCount := _field.countAroundLife(_h, _w)
+				var nextCell int
+				if game.currentField.status[_h][_w] == 1 {
+					if AroundLifeCount == 2 || AroundLifeCount == 3 {
+						nextCell = 1
+					} else {
+						nextCell = 0
+					}
+				} else if game.currentField.status[_h][_w] == 0 {
+					if AroundLifeCount == 3 {
+						nextCell = 1
+					} else {
+						nextCell = 0
+					}
+				} else {
+					fmt.Println("エラーが発生しました")
+				}
+				nextCells[_w] = nextCell
+			}
+			channel <- routineParams{_h, nextCells}
+		}(h, game.currentField)
+	}
+	nextFrame := CreateFieldFrame(game.currentField.height, game.currentField.width)
+	for _h := 0; _h < game.currentField.height; _h++ {
+		tmp := <-channel
+		nextFrame.status[tmp.h] = tmp.nextCells
+		// fmt.Println(tmp)
+	}
+	// fmt.Println(nextFrame.status)
+	return nextFrame, game.currentField
+}
+
 func (game *LifeGame) nextFrame() (*Field, *Field) {
 	nextFrame := CreateFieldFrame(game.currentField.height, game.currentField.width)
 	for h := 0; h < nextFrame.height; h++ {
@@ -36,7 +79,6 @@ func (game *LifeGame) nextFrame() (*Field, *Field) {
 				}
 			} else if game.currentField.status[h][w] == 0 {
 				if AroundLifeCount == 3 {
-					// fmt.Println("debug", h, w, AroundLifeCount)
 					nextCell = 1
 				} else {
 					nextCell = 0
@@ -70,9 +112,15 @@ func (game *LifeGame) MainLoop() {
 	var timeSum time.Duration
 	for {
 		fmt.Println("step", i)
-		game.currentField.printField()
+		// game.currentField.printField()
 		startTime := time.Now()
+		/* <-「//*」と「/*」で切り替えられる
+		// routineなし
 		game.currentField, game.lastField = game.nextFrame()
+		/*/
+		//routineあり
+		game.currentField, game.lastField = game.computeNextFlameAsync()
+		//*/
 		endTime := time.Now()
 		timeSum += endTime.Sub(startTime)
 		fmt.Printf("time duration for  next flame computing %s \n", endTime.Sub(startTime))
@@ -81,7 +129,7 @@ func (game *LifeGame) MainLoop() {
 		if !game.isChange(game.lastField) {
 			break
 		}
-		fmt.Printf("\033[%dA", game.currentField.height+3)
+		// fmt.Printf("\033[%dA", game.currentField.height+3)
 		i++
 	}
 }
