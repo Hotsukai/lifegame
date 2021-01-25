@@ -2,7 +2,7 @@
 
 ## usage 
 ```
-go run main.go <height :int > <width :int> <initializeLifeRate: float(0~1)> 
+go run main.go <height :int> <width :int> <initializeLifeRate :float(0~1)> <interval :int>
 ```
 ### option
 - `-r` , `--routine`
