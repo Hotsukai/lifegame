@@ -67,15 +67,21 @@ func (game *LifeGame) isChange(lastField *Field) bool {
 //MainLoop ゲームのメインのループ
 func (game *LifeGame) MainLoop() {
 	i := 1
+	var timeSum time.Duration
 	for {
 		fmt.Println("step", i)
 		game.currentField.printField()
+		startTime := time.Now()
 		game.currentField, game.lastField = game.nextFrame()
+		endTime := time.Now()
+		timeSum += endTime.Sub(startTime)
+		fmt.Printf("time duration for  next flame computing %s \n", endTime.Sub(startTime))
+		fmt.Printf("AVG time duration for  next flame computing %s \n", time.Duration(float64(timeSum)/float64(i))*time.Nanosecond)
 		time.Sleep(time.Duration(game.intervalSecond) * time.Second)
 		if !game.isChange(game.lastField) {
 			break
 		}
-		fmt.Printf("\033[%dA", game.currentField.height+1)
+		fmt.Printf("\033[%dA", game.currentField.height+3)
 		i++
 	}
 }
