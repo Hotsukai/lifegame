@@ -10,15 +10,19 @@ type LifeGame struct {
 	currentField   *Field
 	lastField      *Field
 	intervalSecond int
+	useRoutine     bool
+	isPrint        bool
 }
 
 //NewLifeGame ゲームを新規作成
-func NewLifeGame(height int, width int, initRate float64, interval int) *LifeGame {
+func NewLifeGame(height int, width int, initRate float64, interval int, useRoutine bool, isPrint bool) *LifeGame {
 	lifeGame := new(LifeGame)
 	gamefield := CreateFieldFrame(height, width).InitFieldStatus(initRate)
 
 	lifeGame.currentField = gamefield
 	lifeGame.intervalSecond = interval
+	lifeGame.isPrint = isPrint
+	lifeGame.useRoutine = useRoutine
 	return lifeGame
 }
 
@@ -28,7 +32,7 @@ func (game *LifeGame) computeNextFlameAsync() (*Field, *Field) {
 		nextCells []int
 	}
 	channel := make(chan routineParams, game.currentField.width)
-	// defer close(channel)
+	defer close(channel)
 	for h := 0; h < game.currentField.height; h++ {
 		go func(_h int, _field *Field) {
 			nextCells := make([]int, _field.width)
@@ -59,9 +63,7 @@ func (game *LifeGame) computeNextFlameAsync() (*Field, *Field) {
 	for _h := 0; _h < game.currentField.height; _h++ {
 		tmp := <-channel
 		nextFrame.status[tmp.h] = tmp.nextCells
-		// fmt.Println(tmp)
 	}
-	// fmt.Println(nextFrame.status)
 	return nextFrame, game.currentField
 }
 
@@ -111,16 +113,19 @@ func (game *LifeGame) MainLoop() {
 	i := 1
 	var timeSum time.Duration
 	for {
+		if game.useRoutine {
+			fmt.Print("** USING ROUTINE **")
+		}
 		fmt.Println("step", i)
-		// game.currentField.printField()
+		if game.isPrint {
+			game.currentField.printField()
+		}
 		startTime := time.Now()
-		/* <-「//*」と「/*」で切り替えられる
-		// routineなし
-		game.currentField, game.lastField = game.nextFrame()
-		/*/
-		//routineあり
-		game.currentField, game.lastField = game.computeNextFlameAsync()
-		//*/
+		if game.useRoutine {
+			game.currentField, game.lastField = game.computeNextFlameAsync()
+		} else {
+			game.currentField, game.lastField = game.nextFrame()
+		}
 		endTime := time.Now()
 		timeSum += endTime.Sub(startTime)
 		fmt.Printf("time duration for  next flame computing %s \n", endTime.Sub(startTime))
@@ -129,7 +134,9 @@ func (game *LifeGame) MainLoop() {
 		if !game.isChange(game.lastField) {
 			break
 		}
-		// fmt.Printf("\033[%dA", game.currentField.height+3)
+		if game.isPrint {
+			fmt.Printf("\033[%dA", game.currentField.height+3)
+		}
 		i++
 	}
 }
